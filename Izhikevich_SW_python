@@ -1,0 +1,321 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import networkx as nx
+import scipy.sparse 
+from random import randrange
+
+
+# Izhikevich firingmodel Created by Eugene M. Izhikevich, February 25, 2003
+ 
+
+Ne =550        # Excitatory neurons  
+Ni = 100      # Inhibitory neurons
+Neurons = Ne+Ni
+
+I_ratio = Ni/Neurons *100
+
+print('Neurons: ',Neurons)
+print('I ratio: ',I_ratio)
+
+def findSpike(liste):   
+    varlist=[]
+    for j in range(len(liste)): # indices of spikes
+        if liste[j] == True:
+            varlist.append(j)
+    return varlist
+
+Ni_list = np.ones(Ni)
+re = np.random.rand(Neurons)
+for i in range (0,Ni):
+    Ni_list[i] = randrange(Neurons)    #creates list of randomly positioned inhibitory neurons
+
+
+a = np.array(0.02*np.ones(Neurons))        # parameter a
+for i in range(0,Ni):
+    j = int(Ni_list[i])
+    a[j] = (0.02+0.08*a[j])
+
+
+b = np.array(0.2*np.ones(Neurons))         # parameter b
+for i in range(0,Ni):
+    j = int(Ni_list[i])
+    b[j] = (0.25-0.05*b[j])
+
+
+c = np.array(-65+(15*re**2))           # parameter c
+for i in range(0,Ni):
+    j = int(Ni_list[i])
+    c[j] = -65
+
+d = np.array(8-6*re**2)              # parameter d
+for i in range(0,Ni):
+    j = int(Ni_list[i])
+    d[j] = 2
+            
+
+
+
+#Choosing network topology/////////////////////////////////////////////////////////////////////////////
+# alternate random node placement
+# S = 0.5*np.random.rand(Neurons,Neurons)   # random connections  
+# for i in range(0,Ni):
+#     j = int(Ni_list[i])
+#     S[:][j] = -2*S[j]
+
+# #print(Random weights)
+# S =0.25*np.sign(S)                # static connections 
+# for i in range(0,Neurons):         # removes self connection
+#     S[i][i]=0
+
+# P = 80
+# connect = int(Neurons*(100-P)/100)      #choosing the number/precentage of Connections per neuron  
+# for i in range (0,Neurons):     #random assignment of null connections
+#     for j in range (0,connect):
+#         Rando = randrange(Neurons)
+#         S[Rando][i] = 0      # set a number of connect random elements in each cloumn to 0
+
+        
+k = int(Neurons*0.8) # connections per node
+SW = nx.watts_strogatz_graph(Neurons,k, 30, seed=None)           # Small world(SW) topology weight matrix
+SW_matrix = nx.adjacency_matrix(SW)   #convverts smarlword to scipy matrix
+S = scipy.sparse.csr_matrix.toarray(SW_matrix) #convverts smarlword to numpy matrix
+S= 0.25*S  # fixed weights for SW
+
+for i in range(0,Neurons):         # removes self connection
+    S[i][i]=0
+for i in range(0,Ni):
+    j = int(Ni_list[i])
+    S[:][j] = -1*S[j]  #makes inhibitory neurons have negative weights 
+    
+
+
+connections = k
+print('Connections: ',connections)
+
+#////////////////////////////////////////////////////////////////////////////////
+    
+v = -65*np.ones(Neurons)    # Initial values of v
+u = b*v        # Initial values of u
+             
+firings = []
+firetimes = []
+Have_fired = 0
+Sigma = []  # for branching
+Firings_when_active = []   # for avalanche
+
+for t in range(0,3000):         # simulation of 1000 ms
+    I= 5*np.random.randn(Neurons,1)     # thalamic input
+    for i in range(0,Ni):
+        j = int(Ni_list[i])
+        I[j] = 2*(I[j]/5)
+    I=np.hstack(I)
+    v_binary = (v>=30)         # binary matrix
+    fired = np.array(findSpike(v_binary))    # indices of spikes
+    
+    if len(fired) < 1:    # so empty aren't used  
+        
+        v = v+0.5*((0.04*(v**2))+((5*v)+140-u+I))   # step 0.5 ms
+        v = v+0.5*((0.04*(v**2))+((5*v)+140-u+I))  # for numerical
+       
+        u = u + (a*((b*v)-u)) 
+        
+        if t>999: # 1000 first ms are not included in analysis
+            Branch_par = 0             # should 0 be counted? for branching
+            Have_fired = 0
+            Branch_par = 0      # for branching
+            #Sigma  = np.concatenate((Sigma,Branch_par),  axis=None)
+        
+    else:        
+          
+        v[fired] = c[fired]
+        u[fired] = u[fired]+d[fired]
+        I_forCalc = S[:,fired]         # weights of all neurons connected to the one that fires
+        I = I+np.sum(I_forCalc,1) 
+        
+        v = v+0.5*((0.04*(v**2))+((5*v)+140-u+I))   # step 0.5 ms
+        v = v+0.5*((0.04*(v**2))+((5*v)+140-u+I)) # for numerical
+        
+        u = u + (a*((b*v)-u))                  # stability
+        
+        if t>999: # 1000 first ms are not included in analysis
+            time_of_fire = np.zeros(len(fired))
+            time_of_fire = time_of_fire + t  # time stamp of spike 
+
+            firetimes = np.concatenate((firetimes,time_of_fire),  axis=None)
+            firings = np.concatenate((firings,fired),  axis=None)
+
+            firing_index = np.array([firetimes, firings])   # spike timings
+
+            Firings_when_active = np.concatenate((Firings_when_active,len(fired)),  axis=None) 
+            Branch_par = Have_fired/len(fired)   # for branching ratio
+            Sigma  = np.concatenate((Sigma,Branch_par),  axis=None) # stores branching ratio
+            Have_fired = len(fired)
+ 
+    
+    
+#/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+# GRAPH THEORY
+
+#plt.figure(1)
+#plt.plot(firing_index[0][:],firing_index[1][:],'.');   # plots spikes 
+
+
+Mean = (len(firing_index[0]))/(t+1)        # mean firing per sec 
+Mean_N_fire = Mean/(Ne+Ni)                 # mean firing per neuron per sec
+
+
+interSpikeTime = (t+1)/(len(firing_index[0])) # mean interSpike Time per spike
+interSpikeTime_per_N = 1- Mean_N_fire         # mean interSpike Time per neuron
+interTime_matrix = [[0] * t for i in range(Neurons)]
+    
+
+N = Neurons # Network nodes 
+M = N*(N-1) # maximum_possible_connection assuming small world topology
+
+
+Edge = nx.number_of_edges(SW) # edges
+
+
+C = nx.density(SW)        # avarage cluster coeff 
+
+
+Avarage_branching = (sum(Sigma)/len(Sigma))
+
+Inhibitory_fire = 0                    # for finding the ratio of E/I firings
+
+for i in range(0,len(firing_index[1])):
+    if any(firing_index[1][i] == Ni_list):
+        Inhibitory_fire= Inhibitory_fire + 1    
+print('Firing E/I',(len(firing_index[1])-Inhibitory_fire)/Inhibitory_fire)
+
+print('Total Neurons =', Neurons)
+print('Excitatory Neurons =', Ne)
+print('Inhibitory Neurons =', Ni)
+print('avarage branching = ',Avarage_branching)
+print('avarage clustering coeff = ',C)
+print('avarage interspike time per neuron = ',interSpikeTime_per_N)
+print('avarage firing/sec per neuron = ', Mean_N_fire*1000)
+
+
+
+#///////////////////////////////////////////////////////////////////////////
+# AVALANCHE STATISTICS
+
+
+Bins = max(Firings_when_active)   # for avalanche, Firings_when_active is spikes per/ time unit (Firings_when_active is binned by 1ms)
+Bins= int(Bins)      # makes as many bins as variance in spiking/time 
+hist = np.zeros(Bins)
+for i in range (0,Bins):        
+    for j in range(len(Firings_when_active)): 
+        if i+1 == Firings_when_active[j]:
+            hist[i]=hist[i]+1  # bins all same ocurrances to bin
+            
+probability_dist = (hist/sum(Firings_when_active)) # probability distribution
+
+probability_dist= [i for i in probability_dist if i != 0] # removes zeroes
+ocurances = np.zeros(len(probability_dist)) # for frequency for plot
+for i in range (0,len(probability_dist)):
+    ocurances[i]=i+1  
+
+
+print('Spiking are binned by 1 ms')
+    
+plt.figure(2)       # for power law distribution 
+plt.plot(np.log(ocurances),np.log(probability_dist),'k.');   
+plt.xlabel('LOG Ocuranses')  
+plt.ylabel('LOG Probability distribution')   
+plt.title('LOG-LOG plot; Power law') 
+
+
+# Thresholding data
+ocurances = np.log(ocurances)
+probability_dist = np.log(probability_dist)
+
+
+    
+# Linear regression    
+    
+X_mean= np.mean(ocurances)         #means
+Y_mean= np.mean(probability_dist)
+
+X_list  = np.zeros(len(ocurances))   # for finding smalest distance, for calculating m
+Y_list  = np.zeros(len(ocurances))
+X_square  = np.zeros(len(ocurances))
+XY_list  = np.zeros(len(ocurances))
+for i in range (0,len(ocurances)):
+    X_list[i] = ocurances[i] -X_mean    # (X-X')
+    Y_list[i] = probability_dist[i] -Y_mean    # (Y-Y')
+    X_square[i] = X_list[i]*X_list[i]   # (X-X')^2
+    XY_list[i] = X_list[i]*Y_list[i]    # (X-X')(Y-Y')
+
+m = sum(XY_list)/sum(X_square)    # coefficient
+c = Y_mean-(m*X_mean)               # intercept
+
+print('line Coeff', m)
+print('intercept',c)
+
+
+plt.figure(3)        # for regression
+plt.plot((ocurances),(probability_dist),'k.');   
+plt.xlabel('LOG Ocuranses')  
+plt.ylabel('LOG Probability distribution')   
+plt.title('Regression') 
+
+plt.plot(ocurances,m*ocurances+c ,'orange'); #plot regression
+plt.plot(X_mean,Y_mean,'r.')
+
+# goodness of fit
+
+pred_Y_list = np.zeros(len(ocurances))   # For Goodness of fit
+for i in range(0,len(ocurances)):
+    Predicted_y = m*ocurances[i]+c         
+    pred_Y_list[i] = Predicted_y - Y_mean
+    
+
+R= sum(pred_Y_list*pred_Y_list) / sum(Y_list*Y_list)
+
+print('Goodness of fit: ',R)
+
+
+
+## calculating alpha 
+         
+alpha = m
+print('alpha value: ',alpha)
+
+if alpha > -1.65 and alpha < -1.35  and R > 0.87 and Avarage_branching < 1.1 and Avarage_branching > 0.9:
+    print('Critical')
+
+#Raster plot////////////////////////////////////////////////
+ISI=[]
+n_tot = len(firing_index[0])
+firings_M = np.zeros([N, t+1]) #binary matrix of spiking incidents
+for j in range(0,N):
+    InterTimeIndex1=0
+    InterTimeIndex2=0
+    for i in range(0,n_tot):
+        if firing_index[1,i] == j:
+            Index = int(firing_index[0,i])
+            firings_M[j, Index] = Index     #save spiking incidents
+            # for finding inter time
+            InterTimeIndex2=Index
+            InterTime =InterTimeIndex2-InterTimeIndex1
+            ISI.append(InterTime)
+            InterTimeIndex1=Index 
+spike_events = []
+for i in range(N):
+     spike_events.append(np.where(firings_M[i,:])[0])
+
+fig = plt.figure(4)
+ax = fig.add_subplot(1, 1, 1)
+ax.eventplot(spike_events,colors='black')
+plt.xlabel('ms')  
+plt.ylabel('Neurons')   
+plt.title('Raster plot') 
+plt.show()
+
+fig = plt.figure(5)
+plt.hist(ISI,bins=int(max(ISI)/10)) #see all different histograms for different intervals
+plt.xlabel('inter spike interval in ms, Binned by: 10 ms')  #binns by 10 ms
+plt.ylabel('Occurances')   
+plt.title('ISI plot')
