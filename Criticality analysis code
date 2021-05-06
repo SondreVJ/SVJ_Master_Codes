@@ -1,0 +1,932 @@
+import random
+import numpy as np
+from scipy import stats
+def MLE(Prob_distribution,sizes,Crit_or_Dur):
+    
+    if Crit_or_Dur == 0:
+        Area1=0.8 #
+        Area2=0.2 #
+    elif Crit_or_Dur == 1:
+        Area1=0.4 # the duration has a lot more data then the sizes, and hence do we force the analysis to take more data into concederation
+        Area2=0.6 #
+    ML_List=[]
+    X0_List=[]
+    Xn_List=[]
+    Alpha_List=[]
+    mList=[]
+    cList=[]
+    RList=[]
+    
+    N=len(Prob_distribution)   # for testing different x min x max combinations
+    M=sizes[len(sizes)-1]
+    Lsizes=[]
+    M_lim1=np.log(M)*Area1
+    M_lim2=np.log(M)*Area2
+    #print('N',N)
+    
+    for s in range(0,len(sizes)):
+        Lsizes.append(np.log(sizes[s]))
+    
+    #print('MLim1',M_lim1)
+    #print('lsizes',Lsizes)
+    
+    Top=next(k for k, value in enumerate(Lsizes)if value > M_lim1)-1 # finds index of first element over 50% of the data, limits X0 range
+    N_top=(Lsizes.index(max(Lsizes)))
+    
+    if Top==0.:
+        Top=1
+    
+    #print('lsizes',Lsizes)
+    for j in range (0,150):
+        X=[]
+        
+        X0=random.randint(1,Top) # X0 can maximum be half the lenght of the data
+        MM=round(Lsizes[X0]+M_lim2,2)-0.01 # make sure atleast 0.4 of data lenght is covered
+        if MM >= Lsizes[len(Lsizes)-1]:
+            MM= Lsizes[len(Lsizes)-1] -0.01
+        #print('MM',MM)
+        XN_Start=next(k for k, value in enumerate(Lsizes)if value > MM) # finds index of first element over 40% of the data away from X0 
+        Xn=random.randint(XN_Start,N_top) # Xn is number 40% away from X0 or more
+        
+
+        x=np.array(np.log([Prob_distribution[X0:Xn]]))  # logs input data
+        sizeS=np.log(sizes[X0:Xn])
+
+        
+        X_mean= np.mean((sizeS))         #Computes power law exponent, for MLE use 
+        Y_mean= np.mean((x))             #finds exponent though least squares methode
+        X_list  = np.zeros(len((sizeS)))   
+        Y_list  = np.zeros(len((sizeS)))
+        X_square  = np.zeros(len((sizeS)))
+        XY_list  = np.zeros(len((sizeS)))
+        for i in range (0,len((sizeS))):
+            X_list[i] = (sizeS)[i] -X_mean    # (X-X')
+            Y_list[i] = (x)[0][i] -Y_mean    # (Y-Y')
+            X_square[i] = X_list[i]*X_list[i]   # (X-X')^2
+            XY_list[i] = X_list[i]*Y_list[i]    # (X-X')(Y-Y')
+        
+        m = sum(XY_list)/sum(X_square)    # coefficient
+        c = Y_mean-(m*X_mean)               # intercept
+        
+        pred_Y_list = np.zeros(len(sizeS))  # For Goodness of fit
+        for Gi in range(0,len(sizeS)):
+            Predicted_y = m*sizeS[Gi]+c         
+            pred_Y_list[Gi] = Predicted_y - Y_mean
+        RList.append(sum(pred_Y_list*pred_Y_list) / sum(Y_list*Y_list))
+        
+        a= (-1)*sum(XY_list)/sum(X_square)    # coefficient, must be positive for MLE to work
+        
+
+        if a > 0 and a< 8:   # MLE part
+            for i in range(0,len(Prob_distribution)):
+                X.append(Prob_distribution[i])
+            A2=0
+            for i in range (X0,Xn):   #for data used in the first part of the equation
+                A=((1/X[i])**a)
+                A2=A2+A               # sum of this opperation for x min to x max
+            M2=0
+            for i in range(0,N):      #for data used in seconds part of equation
+                M=np.log(X[i])
+                M2=M2+M               # sum of opperation from X=0 to X=n (whole data set)
+            ML=-np.log(A2)-((a/N)*(M2))  #the MLE equation
+            ML_List.append(ML)
+            
+            X0_List.append(X0)
+            Xn_List.append(Xn)
+            Alpha_List.append(a)
+            cList.append(c)
+            mList.append(m)
+        else:
+            ML_List.append(-3000)
+            X0_List.append(X0)
+            Xn_List.append(Xn)
+            Alpha_List.append(a)
+            cList.append('NaN')
+            mList.append(a)
+            
+    
+    Index=ML_List.index(max(ML_List))
+    #print(Index,'Index')
+    X0=X0_List[Index]
+    Xn=Xn_List[Index]
+    c=cList[Index]
+    m=mList[Index]
+    sizes=sizes[X0:Xn]
+    a=Alpha_List[Index]
+    
+    #print('MLE MaxList',max(ML_List))
+    print('MLE Alpha',mList[Index])
+    
+    #print('x0 ',X0)
+    #print('xn ',Xn)
+    
+    R=RList[Index]  # returnes R and m from the highets MLE output
+    m=mList[Index]  #
+    return m, R
+
+
+
+
+import numpy as np
+import math
+import random
+
+
+def Best_Fit(Prob_distribution,sizes):
+
+    top=len(Prob_distribution)
+    Fift=int(top/1.379) #makes it so best distribution must cover 1/5 of the data
+    
+
+    X0List=[]
+    XnList=[]
+    RList=[]
+    if len(sizes) >4:
+        for j in range(0,999):
+            X0=random.randint(0,top-Fift)
+            Xn=random.randint(X0+Fift,top)
+            if Xn <=X0:
+                Xn=X0+1
+            X0List.append(X0)
+            XnList.append(Xn)
+
+            x=np.array([Prob_distribution[X0:Xn]])
+            sizeS=sizes[X0:Xn]
+
+            # best_fit
+            X_mean= np.mean(np.log(sizeS))         #means
+            Y_mean= np.mean(np.log(x))
+
+            X_list  = np.zeros(len(np.log(sizeS)))   # for finding smalest distance, for calculating m
+            Y_list  = np.zeros(len(np.log(sizeS)))
+            X_square  = np.zeros(len(np.log(sizeS)))
+            XY_list  = np.zeros(len(np.log(sizeS)))
+            for i in range (0,len(np.log(sizeS))):
+                X_list[i] = np.log(sizeS)[i] -X_mean    # (X-X')
+                Y_list[i] = np.log(x)[0][i] -Y_mean    # (Y-Y')
+                X_square[i] = X_list[i]*X_list[i]   # (X-X')^2
+                XY_list[i] = X_list[i]*Y_list[i]    # (X-X')(Y-Y')
+
+            m = sum(XY_list)/sum(X_square)    # coefficient
+            c = Y_mean-(m*X_mean)               # intercept
+
+            # goodness of fit
+            pred_Y_list = np.zeros(len(np.log(sizeS)))  # For Goodness of fit
+            for i in range(0,len(np.log(sizeS))):
+                Predicted_y = m*np.log(sizeS)[i]+c         
+                pred_Y_list[i] = Predicted_y - Y_mean
+            R= sum(pred_Y_list*pred_Y_list) / sum(Y_list*Y_list)
+            RList.append(R)
+    X0=X0List[np.argmax(RList)]
+    Xn=XnList[np.argmax(RList)]
+    #F_Prob_distribution = Prob_distribution[X0:Xn+1]
+    #F_sizes = sizes[X0:Xn+1]
+    #F_Prob_distribution, F_sizes, X0, Xn
+    #print ('best fit m',m)
+           
+    return m, R
+
+import matplotlib.pyplot as plt
+def Collaps (Time,avalanche_Location,avalanche_duration,isi_mean,current_name,y):
+    plt.figure(1)
+    # Find area of binned time
+    # Find unique total electrode nr in each binn 
+    # Make binn list of time duration 
+    # plot sequence of time and electrode 
+    mean_list2=[]
+    mean_list3=[]
+    mean_list4=[]
+    mean_list5=[]
+    mean_list6=[]
+    mean_list7=[]
+    mean_list8=[]
+    
+    isi_mean=0.002 #
+    
+    for D in range (0,len(avalanche_duration)-1): 
+        AV_START=0
+        AV_END=1
+        
+        INDX1=(avalanche_Location[D][AV_START])
+        INDX2=(avalanche_Location[D][AV_END])
+        
+        if INDX2-INDX1 >= 6:
+            A=df.iloc[INDX1:INDX2]['times'].values.tolist()
+            C=df.iloc[INDX1:INDX2]['senders'].values.tolist()
+            Binns=1+int(avalanche_duration[D]/isi_mean)
+            Time_per_bin=avalanche_duration[D]/Binns
+
+            #print ('A', A)
+
+            MAX=(df_sub.iloc[avalanche_Location[D][AV_END]]['times'])
+            Ranges=[]
+            for i in range (0, Binns):
+                Ranges.append(MAX - Time_per_bin*i)   # binned avalanches based on isi 
+            Ranges.reverse()
+
+            #print('first range',Ranges[0])
+
+            Start=0
+            Size_list=[]
+            j=0
+            Size_list.append(0)
+            #print(Ranges)
+            for i in range (0,len(A)): # searches all spike times in the current avalanche 
+                #print('A :',A[i])
+                if A[i] > Ranges[j]:    # if the time of a spike is bigger then the interval of the previous bin then, all electrodes in that time frame is put into sizelist 
+                    j=j+1
+                    END=i
+                    B=C[Start:END] # electrodes in time interval
+                    #B=A[Start:END] # electrodes in time interval
+                    #Size_list.append(len(np.unique(B)))
+                    Size_list.append(len(B))
+                    Start=i
+                   
+            END=i
+            B=C[Start:END] # added so last interval is included
+            Size_list.append(len(np.unique(B)))
+            
+            if len(np.unique(B)) >= 1:
+                Ranges.append(Ranges[len(Ranges)-1]+Time_per_bin)
+                Size_list.append(0)
+            
+            
+            Duration=[]
+            for i in range(0,len(Size_list)):
+                #Duration.append(i*Time_per_bin) #time
+                Duration.append(i) #length in delta t
+            #print(len(Duration))
+            #print(len(Size_list))
+            
+            #Scaling 
+            #for i in range(1,len(Duration)):
+            #    Size_list[i]=Size_list[i]/(len(Duration)**2) # scaled Size / Duration^Y  Y=scaling relatishinp 1/y 
+            #for i in range(1,len(Duration)):
+            #    Duration[i]=Duration[i]/Duration[len(Duration)-1] #normalizing
+            #for i in range(1,len(Duration)):
+            #    Size_list[i]=Size_list[i]/11 # scaled Size / Duration^Y  Y=scaling relatishinp 1/y 
+            
+            if len(Size_list) == 10:
+                mean_list2.append(Size_list)
+            elif len(Size_list) == 11:
+                mean_list3.append(Size_list)
+            elif len(Size_list) == 12:
+                mean_list4.append(Size_list)    
+            elif len(Size_list) == 13:
+                mean_list5.append(Size_list)    
+            elif  len(Size_list) == 14:
+                mean_list6.append(Size_list)
+            elif  len(Size_list) == 15:
+                mean_list7.append(Size_list)
+           # elif  len(Size_list) == 90:
+           #     mean_list8.append(Size_list)
+            
+            if sum(Size_list) != 0 and len(Duration) >2:
+                plt.plot(Duration,Size_list)    
+    
+    mean_list2=np.mean(mean_list2, axis = 0)
+    mean_list3=np.mean(mean_list3, axis = 0)
+    mean_list4=np.mean(mean_list4, axis = 0)
+    mean_list5=np.mean(mean_list5, axis = 0)
+    mean_list6=np.mean(mean_list6, axis = 0)
+    mean_list7=np.mean(mean_list7, axis = 0)
+    #mean_list8=np.mean(mean_list8, axis = 0)
+    
+    print(mean_list2)
+    print(mean_list3)
+    print(type(mean_list2))
+    print(type(mean_list3))
+    
+    if   type(mean_list2)== np.float64:
+        print('YESSSSSSS')
+    
+    
+    Dur2=[]
+    Dur3=[]
+    Dur4=[]
+    Dur5=[]
+    Dur6=[]
+    Dur7=[]
+    #Dur8=[]
+    
+    # so it does not crash
+    if np.any(np.isnan(mean_list2)) == True:
+        mean_list2 = mean_list3
+    if np.any(np.isnan(mean_list3)) == True:
+        mean_list3 = mean_list4
+    if np.any(np.isnan(mean_list4)) == True:
+        mean_list4 = mean_list5
+    if np.any(np.isnan(mean_list5)) == True:
+        mean_list5 = mean_list6
+    if np.any(np.isnan(mean_list6))== True:
+        mean_list6 = mean_list7
+    if np.any(np.isnan(mean_list7)) == True:
+        mean_list7 = mean_list2
+    
+    if np.any(np.isnan(mean_list2)) == True:
+        mean_list2 = mean_list4
+    if np.any(np.isnan(mean_list3)) == True:
+        mean_list3 = mean_list5
+    if np.any(np.isnan(mean_list4)) == True:
+        mean_list4 = mean_list6
+    if np.any(np.isnan(mean_list5)) == True:
+        mean_list5 = mean_list7
+    if np.any(np.isnan(mean_list6)) == True:
+        mean_list6 = mean_list2
+    if np.any(np.isnan(mean_list7)) == True:
+        mean_list7 = mean_list3    
+        
+    if np.any(np.isnan(mean_list2)) == True:
+        mean_list2 = mean_list5
+    if np.any(np.isnan(mean_list3)) == True:
+        mean_list3 = mean_list6
+    if np.any(np.isnan(mean_list4)) == True:
+        mean_list4 = mean_list7
+    if np.any(np.isnan(mean_list5)) == True:
+        mean_list5 = mean_list2
+    if np.any(np.isnan(mean_list6)) == True:
+        mean_list6 = mean_list3
+    if np.any(np.isnan(mean_list7)) == True:
+        mean_list7 = mean_list4
+    
+    if np.any(np.isnan(mean_list2)) == True:
+        mean_list2 = mean_list5
+    if np.any(np.isnan(mean_list3)) == True:
+        mean_list3 = mean_list6
+    if np.any(np.isnan(mean_list4)) == True:
+        mean_list4 = mean_list7
+    if np.any(np.isnan(mean_list5)) == True:
+        mean_list5 = mean_list2
+    if np.any(np.isnan(mean_list6)) == True:
+        mean_list6 = mean_list3
+    if np.any(np.isnan(mean_list7)) == True:
+        mean_list7 = mean_list4   
+    
+    
+    
+        
+    
+    if len(mean_list2) > 1:
+        for i in range(0,len(mean_list2)):
+            Dur2.append(i)
+    if len(mean_list3) > 1:
+        for i in range(0,len(mean_list3)):
+            Dur3.append(i)
+    if len(mean_list4) > 1:
+        for i in range(0,len(mean_list4)):
+            Dur4.append(i)
+    if len(mean_list5) > 1:
+        for i in range(0,len(mean_list5)):
+            Dur5.append(i)
+    if len(mean_list6) > 1:
+        for i in range(0,len(mean_list6)):
+            Dur6.append(i)
+    if len(mean_list7) > 1:
+        for i in range(0,len(mean_list7)):
+            Dur7.append(i)
+    if len(mean_list8) > 1:
+        for i in range(0,len(mean_list8)):
+            Dur8.append(i)
+    
+    plt.figure(2)
+    plt.ylabel('Mean Active electrodes: S(x)')
+    plt.xlabel('Delta T Duration: T(t)')
+    if len(mean_list2) > 1:
+        plt.plot(Dur2,mean_list2)
+    if len(mean_list3) > 1:
+        plt.plot(Dur3,mean_list3)
+    if len(mean_list4) > 1:
+        plt.plot(Dur4,mean_list4)
+    if len(mean_list5) > 1:
+        plt.plot(Dur5,mean_list5)
+    if len(mean_list6) > 1:
+        plt.plot(Dur6,mean_list6)
+    if len(mean_list7) > 1:
+        plt.plot(Dur7,mean_list7)
+    #if len(mean_list8) > 1:
+        #plt.plot(Dur8,mean_list8)
+    
+    plt.figure(3)
+    plt.ylabel('Scaled Active electrodes: S(x)/T^Y ')
+    plt.xlabel('Normalized Delta T Duration')
+    #
+    #plt.ylim(0, 3)
+    for j in range (0,6):
+        if j==0:
+            if len(mean_list2) > 1:
+                Size_list=mean_list2
+                Duration=Dur2
+        elif j==1:
+            if len(mean_list3) > 1:
+                Size_list=mean_list3
+                Duration=Dur3
+        elif j==2:
+            if len(mean_list4) > 1:
+                Size_list=mean_list4
+                Duration=Dur4
+        elif j==3:
+            if len(mean_list5) > 1:
+                Size_list=mean_list5
+                Duration=Dur5
+        elif j==4:
+            if len(mean_list6) > 1:
+                Size_list=mean_list6
+                Duration=Dur6
+        elif j==5:
+            if len(mean_list7) > 1:
+                Size_list=mean_list7
+                Duration=Dur7
+     #   elif j==6:
+     #       if len(mean_list8) > 1:
+     #           Size_list=mean_list8
+     #           Duration=Dur8
+        if len(Duration) > 1:
+            for i in range(1,len(Duration)):
+                Size_list[i]=Size_list[i]*((len(Duration))**(1-(1/y))) # scaled Size / Duration^Y  Y=scaling relatishinp 1/y 
+            for i in range(1,len(Duration)):
+                Duration[i]=Duration[i]/(len(Duration)-1) #normalizing
+        
+        
+        plt.plot(Duration,Size_list)
+    
+    plt.savefig(current_name + '_Collaps.png')
+    return 
+
+
+
+
+
+
+
+# Bin testing
+import numpy as np 
+
+def closest(lst, K):
+      
+    return lst[min(range(len(lst)), key = lambda i: abs(lst[i]-K))]
+
+def most_frequent(MList): 
+    Counter = 0
+    HighetsCounter=-1
+    print('MList in function',len(MList))
+    if len(MList) > 0:
+        for i in range(1, len(MList)):
+            num = MList[i] 
+            j=i-1
+            
+            if MList[i] == MList[j]:
+                Counter=Counter+1
+            else: 
+                Counter=0
+            
+            if Counter > HighetsCounter:
+                HighetsCounter = Counter 
+                NUM=num
+        isi=0
+        
+        if HighetsCounter < 1:
+            print('no stable exponents')
+            isi=1
+            
+    else:
+        isi=1
+        NUM=-10
+        print('Mlist not existing')
+    return NUM, isi 
+
+def FindBin(df_sub,isi_Mean):
+    Binns= [ 0.0005,0.0006,0.0007,0.0008,0.0009, 0.001,0.002, 0.003,0.004,0.005, 0.006,0.007,0.008, 0.009, 0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09]
+    #Binns= [0.08,0.09,0.1]
+    MList=[]
+    MDList=[]
+    
+    #FMList=[]
+    #FMDList=[]
+    
+    for Bin in range (0,len(Binns)):
+        
+        start = 0
+        avalanches = []
+        avalanche_duration = []
+        j=0
+
+        isi_mean=Binns[Bin]
+        print(isi_mean)
+        for i in range(len(df_sub)-1):                     # iterate over pandas data frame to find any avalanches
+                time_diff = df_sub.loc[i+1]['times'] - df_sub.loc[i]['times'] #finds the difference between time ordered spikes
+
+                if time_diff >= isi_mean:              # if the time between spikes is equal/bigger the isi then it is a avalanche
+                    df_slice = df_sub.iloc[start:i+1]      # list of duration/time index of each avalanche 
+                    avalanches.append(len(pd.unique(df_slice['senders'])))  #orders avalanche number of based on senders involved. not sure of rest:  by most apparances, and count the number of different apparances
+
+                    avalanche_duration.append(df_sub.iloc[i+1]['times']-df_sub.iloc[start]['times'])
+                    j=j+1
+
+                    start = i+1                                             #len of avalanches is the number of avalanches present in the recording
+
+        if avalanches:
+            avalanche_distribution = Counter(avalanches)   #count have many time a avalanche appair that has same number of active electrodes
+                                                            # avalanche_distribution = list(avalanche_distribution)
+
+            #Electrode avalanches
+            Electrodes, Ocuranses = zip(*sorted(avalanche_distribution.items()))   #size might be occurances of active electrodes, but should it not be active electrodes per time
+            Prob_distribution = [x / (sum(Ocuranses)) for x in Ocuranses]  # new addition probability distribution
+            sizes=Electrodes
+
+            ElectrodeNr=len(Electrodes) #for filterin out data with too small size
+
+            #spike avalanches
+            times=df.iloc[:]['times'].values.tolist() #makes list of spike times from cvs file
+            Time=int((max(times)-min(times)))  # for binning spikes(box counting)
+
+
+            # the same treatment for duration
+            avalanche_duration_distribution = [int(num/isi_mean) for num in avalanche_duration]  # rounds list to 1 desimals
+            probabilityD,CoD = np.histogram(avalanche_duration_distribution,len(np.unique(avalanche_duration_distribution))) # binnes durations of same lenght
+            sizesD = np.unique(avalanche_duration_distribution)
+            sizesD=sizesD # to round up to closest decimal so there are no 0 in data
+            probabilityD =probabilityD + 1 # because it starts counting from 0
+            Prob_distributionD = [x / (sum(probabilityD)) for x in probabilityD] 
+
+            if (ElectrodeNr) > 4 and len(times)/Time > 0.0834 and len(probabilityD)>6 and len(probabilityD)>6: # well must have more then 4 active electrodes and spike more then 5times per min
+
+                try:
+                    m,R= MLE(Prob_distribution,sizes,0)  #Newly added, best fit of data
+                    mD,Rd = MLE(Prob_distributionD,sizesD,1)
+                    
+                   # M=Best_Fit(Prob_distribution,sizes)
+                   # MD=Best_Fit(Prob_distributionD,sizesD)
+                    
+        
+                    MList.append(round(m,1))
+                    MDList.append(round(mD,1))
+                
+                    #FMList.append(round(M,1))
+                    #FMDList.append(round(MD,1))
+                    
+                except RuntimeError:
+                    print("Error - curve_fit failed")
+            else:
+                print('Data not suited for MLE analysis')
+                MList.append(-100+Bin)
+                MDList.append(-100+Bin)
+                print('')
+
+    print('m mle Find Bin',MList)
+    print('md mle Find Bin',MDList)
+    
+  #  print('m best Find Bin',MList)
+  #  print('md best Find Bin',MDList)
+    print('len Mlist: ',len(MList)) 
+  
+    NUM,isi=most_frequent(MList) # finds the most stable exponent, returns isi=1 if no stables are found
+    print('NUM',NUM)
+    if isi < 1 : #  MLE list exists and there is a stable exponent
+        if NUM > -9: 
+            print (NUM)
+            if NUM != MList[len(MList)-1]:
+              #  Binsize = Binns[MList.index(NUM)+1]
+                #print('Binsize = stable exponent :',Binsize)
+                L_rate='yes'
+            #else:
+                #Binsize = Binns[MList.index(NUM)]
+            #print('Binsize = stable exponent :',Binsize)
+            Binsize=isi_Mean
+            L_rate='yes'
+        else:
+            Binsize=isi_Mean
+            print('Binsize =isi :',Binsize)
+            L_rate='NO'
+    else: 
+        if NUM != -10: #MLE list exists but no clear stable exponent
+            #NUM=closest(MList, -1.51) #finds value in list closes to -1.5
+            #Binsize = Binns[MList.index(NUM)]
+            #print('Binsize = closest to critical :',Binsize)
+            L_rate='no'
+            Binsize=isi_Mean
+        else:     #MLE List does not exist
+            Binsize=isi_Mean
+            print('Binsize = isi :',Binsize)
+            L_rate='NO'
+    print('Binsize :',Binsize)    
+    #if len(MList) > 0:
+    #    NUM=closest(MList, -1.5) #finds value in list closes to -1.5
+    #    Binsize = Binns[MList.index(NUM)]
+    #    print('Binsize = closest to critical :',Binsize)
+    #else:
+    #    Binsize = isi_Mean
+    #    if Binsize > 0.9:
+    #        Binsize =0.4
+    #if len(MList) > 1:  # tests linear relationship between crit decrease and bin size
+   #     if sum(MList) >-100:
+   #         for i in range (1, len(MList)):
+    #            j= i-1
+     #           if MList[i] > MList[j]:            
+      #              L_rate='yes'
+       #         else:
+        #            L_rate='no'
+        #    m,R=bestfit(MList,Binns[0:len(MList)])
+        #    print('M liner test :',m,' R linear test :',R)
+            
+   #     else:
+   #         L_rate= 'maybe'
+   # else:
+   #         L_rate= 'maybe'
+    return Binsize, L_rate
+
+
+
+
+
+
+import csv
+import matplotlib.pyplot as plt
+import numpy as np
+from collections import Counter
+from scipy.optimize import curve_fit
+import xlsxwriter
+import pathlib
+import pandas as pd
+
+''' File to find criticality in CSV or similar files using pandas. 
+    CSV file must be configured to have a header (first two values in csv file).
+    these should be ''senders' and 'times' (order not important).
+    If not sorted be prepared for painstaking stupid pandas.
+'''
+
+def func_powerlaw(x, m, c, c0):
+    return c0 + x**m * c
+
+# for creating excel file
+workbook = xlsxwriter.Workbook('D:\Sondre\CSVs\Critical_variables.xlsx')
+worksheet = workbook.add_worksheet()
+
+# for placing right header in right column in excel file
+cell_format = workbook.add_format({'bold': True, 'font_color': 'black'})
+cell_format.set_font_size(12)
+worksheet.write('A1', 'Inhibitory percentage', cell_format)
+worksheet.write('B1', 'Culture age', cell_format)
+worksheet.write('C1', 'Plate Well', cell_format)
+worksheet.write('D1', 'Power law exponent', cell_format)
+worksheet.write('E1', 'Regression fit', cell_format)
+worksheet.write('F1', 'ISI', cell_format)
+worksheet.write('G1', 'no. of avalanches in the fit range for ISI', cell_format)
+worksheet.write('H1', 'Avarage branching', cell_format)
+worksheet.write('I1', 'Firing rate', cell_format)
+worksheet.write('J1', 'Datapoints', cell_format)
+worksheet.write('K1', 'Duration exponent', cell_format)
+worksheet.write('L1', 'Scaling relationship', cell_format)
+worksheet.write('M1', 'Trusted linear decrese', cell_format)
+row = 1
+col = 0
+
+# for sorting by inhibitory ratio
+H = ['75-4708_A1','75-4708_B2','75-4713_A3','75-4713_B1','75-4719_A2','75-4719_B3']
+M = ['75-4708_A2','75-4708_B3','75-4713_A1','75-4713_B2','75-4719_A3','75-4719_B1']
+L = ['75-4708_A3','75-4708_B1','75-4713_A2','75-4713_B3','75-4719_A1','75-4719_B2']
+
+
+plt.rcParams['figure.figsize'] = (12, 12)           # determines size of figures
+
+current_path = pathlib.Path.cwd()
+df_list = []
+names = []
+
+
+Sigma = []  # for branching
+list4Bin = []
+
+for current_file in pathlib.Path(current_path).rglob('*csv'):            # set file suffix for file top search for. Probably cvs
+    
+    print("Current file: ", current_file)
+    df = pd.read_csv(current_file, sep = ',')                           # Inferense of head automatically, may need to change sep to fit separator, see print of head ifnot working
+
+    names.append(current_file.with_suffix('').name)
+    current_name = current_file.with_suffix('').name
+
+    DIV=current_name[0:2]    # age taken from file name
+    Culture=current_name[6:] #  culture taken from file name
+    plate=(current_name[11:13])  
+    print(plate)
+    
+    if int(DIV) > 43 and plate == '19' : 
+
+        # Removes electrode noice 
+        spikes = df.iloc[:]['senders'].values.tolist()      # takes cvs file and makes list of active electrodes 
+
+        df_sub = df #sub data
+        df.sort_values(by=['times'], inplace=True) 
+
+        df_sub.sort_values(by=['times'], inplace=True)                          # make certain data is sorted correctly
+        df_sub.reset_index(drop=True, inplace=True)                                           # reset index beacause obviously that isn't alrady included.... à² _à² 
+        spk_grouped = df_sub.groupby('senders')
+        spk_isi = spk_grouped['times'].diff().dropna()                     #makes a list of differences in time between the ordered spikes
+        #spk_isi.hist(bins=np.arange(0., 1, 0.01), density=True)
+        #plt.xlabel('Interspike interval $\Delta t$[ms]')
+        #plt.ylabel('Proportion of intervals')
+        #f = plt.gcf()
+        #f.savefig(current_name + '_Size_Plot.png')                        # saves a png image of of isi. Can be changed to pdf if vector graphics is needed
+        #plt.show()                                                        # uncomment to show plots as you run file.
+        #plt.clf()
+        #f.clf()
+        plt.figure()
+
+        isi_Mean = spk_isi.median()     #changed to median and not mean. this is the median for spiking ocurances in the net work not for single neurons
+        
+        start = 0
+        avalanches = []
+
+
+        print('isi mean',spk_isi.mean())
+        print('isi median',spk_isi.median())
+
+        avalanche_duration = []
+        avalanche_Location = []    # for shape collapse
+        j=0
+
+       # isi_mean,L_rate=FindBin(df_sub,isi_Mean)
+        
+
+        for i in range(len(df_sub)-1):                     # iterate over pandas data frame to find any avalanches
+            time_diff = df_sub.loc[i+1]['times'] - df_sub.loc[i]['times'] #finds the difference between time ordered spikes
+
+            if time_diff >= isi_mean:              # if the time between spikes is equal/bigger the isi then it is a avalanche
+                df_slice = df_sub.iloc[start:i+1]      # list of duration/time index of each avalanche 
+                avalanches.append(len(pd.unique(df_slice['senders'])))  #orders avalanche number of based on senders involved. not sure of rest:  by most apparances, and count the number of different apparances
+
+                avalanche_duration.append(df_sub.iloc[i+1]['times']-df_sub.iloc[start]['times'])
+                avalanche_Location.append([start,i+1])
+                j=j+1
+
+                start = i+1                                             #len of avalanches is the number of avalanches present in the recording
+        print('nr of avalanches',len(avalanches))
+        if avalanches:
+            avalanche_distribution = Counter(avalanches)   #count have many time a avalanche appair that has same number of active electrodes
+                                                            # avalanche_distribution = list(avalanche_distribution)
+
+            #Electrode avalanches
+            Electrodes, Ocuranses = zip(*sorted(avalanche_distribution.items()))   #size might be occurances of active electrodes, but should it not be active electrodes per time
+            Prob_distribution = [x / (sum(Ocuranses)) for x in Ocuranses]  # new addition probability distribution
+            sizes=Electrodes
+
+            ElectrodeNr=len(Electrodes) #for filterin out data with too small size
+
+            #spike avalanches
+            times=df.iloc[:]['times'].values.tolist() #makes list of spike times from cvs file
+            Time=(max(times)-min(times))
+            Time_B=int((max(times)-min(times))/isi_mean)  # for binning spikes(box counting)
+
+
+            # the same treatment for duration
+            
+            avalanche_duration_distribution = [int(num/isi_mean) for num in avalanche_duration] # time in delta T
+            probabilityD,CoD = np.histogram(avalanche_duration_distribution,len(np.unique(avalanche_duration_distribution))) # binnes durations of same lenght
+            sizesD = np.unique(avalanche_duration_distribution)
+            sizesD=sizesD # to round up to closest decimal so there are no 0 in data
+            
+            probabilityD =probabilityD + 1 # because it starts counting from 0
+            Prob_distributionD = [x / (sum(probabilityD)) for x in probabilityD] 
+
+
+            print('nr electrodes ',ElectrodeNr)
+            print('firing rate ',len(times)/Time,' 5 spikes per min:', 0.0834)
+            print('nr of different avalanches ',len(sizesD))
+
+            if (ElectrodeNr) > 4 and len(times)/Time > 0.0834 and len(Prob_distributionD)>5: # well must have more then 4 active electrodes and spike more then 5times per min
+                
+
+                try:
+                    m,R= MLE(Prob_distribution,sizes,0)  #Newly added, best fit of data
+                    mD,Rd = MLE(Prob_distributionD,sizesD,1)
+                    c = (np.log(Prob_distribution[2])-np.log(sizes[2])*(-1.5)) #for visualizing -1.5
+                    cD = (np.log(Prob_distributionD[2])-np.log(sizesD[2])*(-2)) #for visualizing -1.5
+                except RuntimeError:
+                    print("Error - curve_fit failed")
+
+
+                #plt.xlabel('LOG Sizes')
+                #plt.ylabel('log P(s)')
+                #plt.plot(np.log(sizes), np.log(Prob_distribution),'ko')   #new addition
+                #plt.plot(np.log(sizes),(np.log(sizes)*(-1.5))+c,'orange',linestyle='dashed')
+                #plt.grid(True)
+                #plt.legend(["Data","Regression"])
+                #plt.show()
+                #plt.clf()
+                #f.clf()
+                #f = plt.gcf()
+                #f.savefig(current_name + '_Size_Plot.png') 
+
+                print('Alpha',m) # alternate solution untill curve is fixed
+                print('Alpha duration',mD)
+                print('Goodness of fit: ',R) #alt soultion
+                print("Mean ISI: ", isi_mean)       #new addition
+                print('Counted avalanches',len(avalanches))
+                print('')
+
+                #plt.xlabel('LOG Sizes')
+                #plt.ylabel('log P(s)')
+                #plt.plot(np.log(sizesD), np.log(Prob_distributionD),'ko')   #new addition
+                #plt.plot(np.log(sizesD),(np.log(sizesD)*(-2))+cD,'orange',linestyle='dashed')
+                #plt.grid(True)
+                #plt.legend(["Data","Regression"])
+                #f = plt.gcf()
+                #f.savefig(current_name + '_Duration_Plot.png') 
+
+                plt.show()
+                #plt.clf()
+                #f.clf()
+
+                # branching
+
+                #Bins=round((Time)/isi_mean)   # binns the branchin is calculated from
+                #df_sub.sort_values(by=['times'], inplace=True)
+
+                #with open(current_file) as f:
+                #    list4Bin = [row.split()[0] for row in f] # takes CSV data and makes list of first cloumn
+                #list4Bin.pop(0)   # removes name of row
+                #list4Bin.sort()
+                #for i in range(len(list4Bin)):
+                #    list4Bin[i]=float(list4Bin[i][:-3])    # delets three last characters before converting to float
+                #list4Bin=sorted(list4Bin,key=float)
+                #hist,bin_edges = np.histogram(list4Bin, bins=Bins) # must have 2 outputs to get hist list
+
+               # for i in range(0,len(hist)-1):
+               #     j=i+1
+               #     if hist[i] != 0:   # makes it so the branching is only compared against non-zero values
+               #         if hist[j]==0 and hist[i] !=0:
+               #             Branch_par=1
+               #         else:
+               #            Branch_par = hist[j]/hist[i] 
+               #         if Branch_par < 0:
+               #             Branch_par = 0
+               #         else:
+               #             Sigma  = np.concatenate((Sigma,Branch_par),  axis=None) # stores branching ratio
+               # if len(Sigma) > 0:    
+               #     Sigma = [i for i in Sigma if i != 0] # removes zeros
+               #     Avarage_branching = (sum(Sigma)/len(Sigma))
+               #     print('Branching',Avarage_branching)
+               # else:
+               #     Avarage_branching = 'NaN'
+
+
+                # variables
+
+                if Culture in H:          # sorts inhibitory ratio by cultures 
+                    InhibitoryRatio= 0.24
+
+                elif Culture in M:
+                    InhibitoryRatio= 0.15
+
+                elif Culture in L:
+                    InhibitoryRatio= 0.08
+
+                else:
+                    print('ez wronk')
+                    InhibitoryRatio = 0
+
+
+                Hz = len(spikes)/(Time) # firing rate
+
+                Scaling= 1/(((mD*-1)-1)/((m*-1)-1)) #scaling relationship, must convert to absolut value
+                print('Scaling ',Scaling)
+                if np.isnan(mD) == True: #removes nan
+                    mD=0
+                    Scaling=0
+
+                if Scaling > (-9) and Scaling < (9) :
+                    plt.figure(2)
+                    Collaps (Time,avalanche_Location,avalanche_duration,isi_mean,current_name,Scaling)
+                
+                if type(R) != float or type(R) != int:
+                    R=0
+                
+                # the data that is implemented in each row in excel
+ #               data = (
+ #               [InhibitoryRatio,DIV,Culture,m,R,isi_mean,len(avalanches),Avarage_branching, Hz,(ElectrodeNr),mD,Scaling,L_rate], 
+#
+               # )
+
+                # makes it so the right variable is in the right column
+                # row is also updates so new entries are in row under
+            #    for var1, var2, var3, var4, var5, var6, var7, var8, var9, varA, varB, varC, varD in (data): 
+            #        worksheet.write(row, col, var1)
+            #        worksheet.write(row, col + 1, var2)
+            #        worksheet.write(row, col + 2, var3)
+            #        worksheet.write(row, col + 3, var4)
+            #        worksheet.write(row, col + 4, var5)
+            #        worksheet.write(row, col + 5, var6)
+            #        worksheet.write(row, col + 6, var7)
+            #        worksheet.write(row, col + 7, var8)
+            #        worksheet.write(row, col + 8, var9)
+            #        worksheet.write(row, col + 9, varA)
+            #        worksheet.write(row, col + 10, varB)
+            #        worksheet.write(row, col + 11, varC)
+            #        worksheet.write(row, col + 12, varD)
+            #        row += 1
+                
+        else:
+            print(len(spikes)/Time)
+            print("No avalanches detected for file: ", current_name)
+
+workbook.close()
+print("End of File. All systems run fine.")
