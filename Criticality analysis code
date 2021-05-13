@@ -648,17 +648,14 @@ import xlsxwriter
 import pathlib
 import pandas as pd
 
-''' File to find criticality in CSV or similar files using pandas. 
+''' File to find criticality in CSV  files using pandas. 
     CSV file must be configured to have a header (first two values in csv file).
     these should be ''senders' and 'times' (order not important).
-    If not sorted be prepared for painstaking stupid pandas.
 '''
 
-def func_powerlaw(x, m, c, c0):
-    return c0 + x**m * c
 
 # for creating excel file
-workbook = xlsxwriter.Workbook('D:\Sondre\CSVs\Critical_variables.xlsx')
+workbook = xlsxwriter.Workbook(' ')         #NB. Set file directory HERE 
 worksheet = workbook.add_worksheet()
 
 # for placing right header in right column in excel file
@@ -696,7 +693,7 @@ names = []
 Sigma = []  # for branching
 list4Bin = []
 
-for current_file in pathlib.Path(current_path).rglob('*csv'):            # set file suffix for file top search for. Probably cvs
+for current_file in pathlib.Path(current_path).rglob('*csv'):            # set file suffix for file top search for. cvs
     
     print("Current file: ", current_file)
     df = pd.read_csv(current_file, sep = ',')                           # Inferense of head automatically, may need to change sep to fit separator, see print of head ifnot working
@@ -718,7 +715,7 @@ for current_file in pathlib.Path(current_path).rglob('*csv'):            # set f
         df.sort_values(by=['times'], inplace=True) 
 
         df_sub.sort_values(by=['times'], inplace=True)                          # make certain data is sorted correctly
-        df_sub.reset_index(drop=True, inplace=True)                                           # reset index beacause obviously that isn't alrady included.... à² _à² 
+        df_sub.reset_index(drop=True, inplace=True)                                           # reset index 
         spk_grouped = df_sub.groupby('senders')
         spk_isi = spk_grouped['times'].diff().dropna()                     #makes a list of differences in time between the ordered spikes
         #spk_isi.hist(bins=np.arange(0., 1, 0.01), density=True)
@@ -731,7 +728,7 @@ for current_file in pathlib.Path(current_path).rglob('*csv'):            # set f
         #f.clf()
         plt.figure()
 
-        isi_Mean = spk_isi.median()     #changed to median and not mean. this is the median for spiking ocurances in the net work not for single neurons
+        isi_Mean = spk_isi.median()     #changed to median and not mean. this is the median for spiking ocurances in the network not for single neurons
         
         start = 0
         avalanches = []
@@ -744,7 +741,7 @@ for current_file in pathlib.Path(current_path).rglob('*csv'):            # set f
         avalanche_Location = []    # for shape collapse
         j=0
 
-       # isi_mean,L_rate=FindBin(df_sub,isi_Mean)
+       # isi_mean,L_rate=FindBin(df_sub,isi_Mean) 
         
 
         for i in range(len(df_sub)-1):                     # iterate over pandas data frame to find any avalanches
@@ -761,7 +758,7 @@ for current_file in pathlib.Path(current_path).rglob('*csv'):            # set f
                 start = i+1                                             #len of avalanches is the number of avalanches present in the recording
         print('nr of avalanches',len(avalanches))
         if avalanches:
-            avalanche_distribution = Counter(avalanches)   #count have many time a avalanche appair that has same number of active electrodes
+            avalanche_distribution = Counter(avalanches)   #count how many times a avalanche appairs that has same number of active electrodes
                                                             # avalanche_distribution = list(avalanche_distribution)
 
             #Electrode avalanches
@@ -792,29 +789,29 @@ for current_file in pathlib.Path(current_path).rglob('*csv'):            # set f
             print('firing rate ',len(times)/Time,' 5 spikes per min:', 0.0834)
             print('nr of different avalanches ',len(sizesD))
 
-            if (ElectrodeNr) > 4 and len(times)/Time > 0.0834 and len(Prob_distributionD)>5: # well must have more then 4 active electrodes and spike more then 5times per min
+            if (ElectrodeNr) > 4 and len(times)/Time > 0.0834 and len(Prob_distributionD)>5: # networks must have more then 4 active electrodes and spike more then 5times per min
                 
 
                 try:
                     m,R= MLE(Prob_distribution,sizes,0)  #Newly added, best fit of data
                     mD,Rd = MLE(Prob_distributionD,sizesD,1)
                     c = (np.log(Prob_distribution[2])-np.log(sizes[2])*(-1.5)) #for visualizing -1.5
-                    cD = (np.log(Prob_distributionD[2])-np.log(sizesD[2])*(-2)) #for visualizing -1.5
+                    cD = (np.log(Prob_distributionD[2])-np.log(sizesD[2])*(-2)) #for visualizing -2
                 except RuntimeError:
                     print("Error - curve_fit failed")
 
 
-                #plt.xlabel('LOG Sizes')
-                #plt.ylabel('log P(s)')
-                #plt.plot(np.log(sizes), np.log(Prob_distribution),'ko')   #new addition
-                #plt.plot(np.log(sizes),(np.log(sizes)*(-1.5))+c,'orange',linestyle='dashed')
-                #plt.grid(True)
-                #plt.legend(["Data","Regression"])
-                #plt.show()
-                #plt.clf()
-                #f.clf()
-                #f = plt.gcf()
-                #f.savefig(current_name + '_Size_Plot.png') 
+                plt.xlabel('LOG Sizes')
+                plt.ylabel('log P(s)')
+                plt.plot(np.log(sizes), np.log(Prob_distribution),'ko')   #new addition
+                plt.plot(np.log(sizes),(np.log(sizes)*(-1.5))+c,'orange',linestyle='dashed')
+                plt.grid(True)
+                plt.legend(["Data","Regression"])
+                plt.show()
+                plt.clf()
+                f.clf()
+                f = plt.gcf()
+                f.savefig(current_name + '_Size_Plot.png') 
 
                 print('Alpha',m) # alternate solution untill curve is fixed
                 print('Alpha duration',mD)
@@ -823,65 +820,61 @@ for current_file in pathlib.Path(current_path).rglob('*csv'):            # set f
                 print('Counted avalanches',len(avalanches))
                 print('')
 
-                #plt.xlabel('LOG Sizes')
-                #plt.ylabel('log P(s)')
-                #plt.plot(np.log(sizesD), np.log(Prob_distributionD),'ko')   #new addition
-                #plt.plot(np.log(sizesD),(np.log(sizesD)*(-2))+cD,'orange',linestyle='dashed')
-                #plt.grid(True)
-                #plt.legend(["Data","Regression"])
-                #f = plt.gcf()
-                #f.savefig(current_name + '_Duration_Plot.png') 
+                plt.xlabel('LOG Sizes')
+                plt.ylabel('log P(s)')
+                plt.plot(np.log(sizesD), np.log(Prob_distributionD),'ko')   #new addition
+                plt.plot(np.log(sizesD),(np.log(sizesD)*(-2))+cD,'orange',linestyle='dashed')
+                plt.grid(True)
+                plt.legend(["Data","Regression"])
+                f = plt.gcf()
+                f.savefig(current_name + '_Duration_Plot.png') 
 
                 plt.show()
-                #plt.clf()
-                #f.clf()
+                plt.clf()
+                f.clf()
 
                 # branching
+                Bins=round((Time)/isi_mean)   # binns the branchin is calculated from
+                df_sub.sort_values(by=['times'], inplace=True)
 
-                #Bins=round((Time)/isi_mean)   # binns the branchin is calculated from
-                #df_sub.sort_values(by=['times'], inplace=True)
+                with open(current_file) as f:
+                    list4Bin = [row.split()[0] for row in f] # takes CSV data and makes list of first cloumn
+                list4Bin.pop(0)   # removes name of row
+                list4Bin.sort()
+                for i in range(len(list4Bin)):
+                    list4Bin[i]=float(list4Bin[i][:-3])    # delets three last characters before converting to float
+                list4Bin=sorted(list4Bin,key=float)
+                hist,bin_edges = np.histogram(list4Bin, bins=Bins) # must have 2 outputs to get hist list
 
-                #with open(current_file) as f:
-                #    list4Bin = [row.split()[0] for row in f] # takes CSV data and makes list of first cloumn
-                #list4Bin.pop(0)   # removes name of row
-                #list4Bin.sort()
-                #for i in range(len(list4Bin)):
-                #    list4Bin[i]=float(list4Bin[i][:-3])    # delets three last characters before converting to float
-                #list4Bin=sorted(list4Bin,key=float)
-                #hist,bin_edges = np.histogram(list4Bin, bins=Bins) # must have 2 outputs to get hist list
-
-               # for i in range(0,len(hist)-1):
-               #     j=i+1
-               #     if hist[i] != 0:   # makes it so the branching is only compared against non-zero values
-               #         if hist[j]==0 and hist[i] !=0:
-               #             Branch_par=1
-               #         else:
-               #            Branch_par = hist[j]/hist[i] 
-               #         if Branch_par < 0:
-               #             Branch_par = 0
-               #         else:
-               #             Sigma  = np.concatenate((Sigma,Branch_par),  axis=None) # stores branching ratio
-               # if len(Sigma) > 0:    
-               #     Sigma = [i for i in Sigma if i != 0] # removes zeros
-               #     Avarage_branching = (sum(Sigma)/len(Sigma))
-               #     print('Branching',Avarage_branching)
-               # else:
-               #     Avarage_branching = 'NaN'
+                for i in range(0,len(hist)-1):
+                    j=i+1
+                    if hist[i] != 0:   # makes it so the branching is only compared against non-zero values
+                        if hist[j]==0 and hist[i] !=0:
+                            Branch_par=1
+                        else:
+                           Branch_par = hist[j]/hist[i] 
+                        if Branch_par < 0:
+                            Branch_par = 0
+                        else:
+                            Sigma  = np.concatenate((Sigma,Branch_par),  axis=None) # stores branching ratio
+                if len(Sigma) > 0:    
+                    Sigma = [i for i in Sigma if i != 0] # removes zeros
+                    Avarage_branching = (sum(Sigma)/len(Sigma))
+                    print('Branching',Avarage_branching)
+                else:
+                    Avarage_branching = 'NaN'
 
 
                 # variables
 
                 if Culture in H:          # sorts inhibitory ratio by cultures 
                     InhibitoryRatio= 0.24
-
                 elif Culture in M:
                     InhibitoryRatio= 0.15
-
                 elif Culture in L:
                     InhibitoryRatio= 0.08
-
                 else:
-                    print('ez wronk')
+                    print('wrong')
                     InhibitoryRatio = 0
 
 
@@ -901,10 +894,10 @@ for current_file in pathlib.Path(current_path).rglob('*csv'):            # set f
                     R=0
                 
                 # the data that is implemented in each row in excel
- #               data = (
- #               [InhibitoryRatio,DIV,Culture,m,R,isi_mean,len(avalanches),Avarage_branching, Hz,(ElectrodeNr),mD,Scaling,L_rate], 
-#
-               # )
+                data = (
+                [InhibitoryRatio,DIV,Culture,m,R,isi_mean,len(avalanches),Avarage_branching, Hz,(ElectrodeNr),mD,Scaling,L_rate], 
+
+                )
 
                 # makes it so the right variable is in the right column
                 # row is also updates so new entries are in row under
