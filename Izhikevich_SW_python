@@ -6,7 +6,7 @@ from random import randrange
 
 
 # Izhikevich firingmodel Created by Eugene M. Izhikevich, February 25, 2003
- 
+# Izhikevich EM. Simple model of spiking neurons. IEEE Transactions on neural networks. 2003;14(6):1569-72. 
 
 Ne =550        # Excitatory neurons  
 Ni = 100      # Inhibitory neurons
