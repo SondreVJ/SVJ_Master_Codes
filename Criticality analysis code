@@ -1,7 +1,11 @@
 import random
 import numpy as np
 from scipy import stats
-def MLE(Prob_distribution,sizes,Crit_or_Dur):
+#Maximum likelyhood estimation fuction. This function uses the probability distribution and the size occurrences to compute the critical exponent from the 
+# data section least likely to have been affected by noise or sub-sampling.
+# The function also needs binary input of the critical exponent is computed for avalanche size or duration
+
+def MLE(Prob_distribution,sizes,Crit_or_Dur): 
     
     if Crit_or_Dur == 0:
         Area1=0.8 #
@@ -52,9 +56,9 @@ def MLE(Prob_distribution,sizes,Crit_or_Dur):
         x=np.array(np.log([Prob_distribution[X0:Xn]]))  # logs input data
         sizeS=np.log(sizes[X0:Xn])
 
-        
+     
         X_mean= np.mean((sizeS))         #Computes power law exponent, for MLE use 
-        Y_mean= np.mean((x))             #finds exponent though least squares methode
+        Y_mean= np.mean((x))             #finds exponent though least squares methode 
         X_list  = np.zeros(len((sizeS)))   
         Y_list  = np.zeros(len((sizeS)))
         X_square  = np.zeros(len((sizeS)))
@@ -77,6 +81,11 @@ def MLE(Prob_distribution,sizes,Crit_or_Dur):
         a= (-1)*sum(XY_list)/sum(X_square)    # coefficient, must be positive for MLE to work
         
 
+        # this section is the MLE,  
+        # Marshall N, Timme NM, Bennett N, Ripp M, Lautzenhiser E, Beggs JM. 
+        # Analysis of power laws, shape collapses, and neural complexity: new techniques and matlab support via the ncc toolbox. 
+        # Frontiers in physiology. 2016;7:250.
+        
         if a > 0 and a< 8:   # MLE part
             for i in range(0,len(Prob_distribution)):
                 X.append(Prob_distribution[i])
@@ -131,6 +140,7 @@ import numpy as np
 import math
 import random
 
+#
 
 def Best_Fit(Prob_distribution,sizes):
 
@@ -186,6 +196,14 @@ def Best_Fit(Prob_distribution,sizes):
            
     return m, R
 
+
+# Collaose function
+#Friedman N, Ito S, Brinkman BA, Shimono M, DeVille RL, Dahmen KA, et al. 
+#Universal critical dynamics in high resolution neuronal avalanche data. 
+#Physical review letters. 2012;108(20):208102.
+
+# This version is restricted to only work with 7 diffrenet sizes at once. 
+
 import matplotlib.pyplot as plt
 def Collaps (Time,avalanche_Location,avalanche_duration,isi_mean,current_name,y):
     plt.figure(1)
@@ -200,8 +218,7 @@ def Collaps (Time,avalanche_Location,avalanche_duration,isi_mean,current_name,y)
     mean_list6=[]
     mean_list7=[]
     mean_list8=[]
-    
-    isi_mean=0.002 #
+   
     
     for D in range (0,len(avalanche_duration)-1): 
         AV_START=0
@@ -494,6 +511,11 @@ def most_frequent(MList):
         print('Mlist not existing')
     return NUM, isi 
 
+
+
+# Function for testing linear relationships in critical exponent in realtionship to binsize
+# Function uses raw data from spikebinning file, and the isi value
+
 def FindBin(df_sub,isi_Mean):
     Binns= [ 0.0005,0.0006,0.0007,0.0008,0.0009, 0.001,0.002, 0.003,0.004,0.005, 0.006,0.007,0.008, 0.009, 0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09]
     #Binns= [0.08,0.09,0.1]
@@ -574,9 +596,6 @@ def FindBin(df_sub,isi_Mean):
 
     print('m mle Find Bin',MList)
     print('md mle Find Bin',MDList)
-    
-  #  print('m best Find Bin',MList)
-  #  print('md best Find Bin',MDList)
     print('len Mlist: ',len(MList)) 
   
     NUM,isi=most_frequent(MList) # finds the most stable exponent, returns isi=1 if no stables are found
@@ -584,24 +603,15 @@ def FindBin(df_sub,isi_Mean):
     if isi < 1 : #  MLE list exists and there is a stable exponent
         if NUM > -9: 
             print (NUM)
-            if NUM != MList[len(MList)-1]:
-              #  Binsize = Binns[MList.index(NUM)+1]
-                #print('Binsize = stable exponent :',Binsize)
+            if NUM != MList[len(MList)-1]:  
                 L_rate='yes'
-            #else:
-                #Binsize = Binns[MList.index(NUM)]
-            #print('Binsize = stable exponent :',Binsize)
-            Binsize=isi_Mean
-            L_rate='yes'
+            
         else:
             Binsize=isi_Mean
             print('Binsize =isi :',Binsize)
             L_rate='NO'
     else: 
         if NUM != -10: #MLE list exists but no clear stable exponent
-            #NUM=closest(MList, -1.51) #finds value in list closes to -1.5
-            #Binsize = Binns[MList.index(NUM)]
-            #print('Binsize = closest to critical :',Binsize)
             L_rate='no'
             Binsize=isi_Mean
         else:     #MLE List does not exist
@@ -609,35 +619,15 @@ def FindBin(df_sub,isi_Mean):
             print('Binsize = isi :',Binsize)
             L_rate='NO'
     print('Binsize :',Binsize)    
-    #if len(MList) > 0:
-    #    NUM=closest(MList, -1.5) #finds value in list closes to -1.5
-    #    Binsize = Binns[MList.index(NUM)]
-    #    print('Binsize = closest to critical :',Binsize)
-    #else:
-    #    Binsize = isi_Mean
-    #    if Binsize > 0.9:
-    #        Binsize =0.4
-    #if len(MList) > 1:  # tests linear relationship between crit decrease and bin size
-   #     if sum(MList) >-100:
-   #         for i in range (1, len(MList)):
-    #            j= i-1
-     #           if MList[i] > MList[j]:            
-      #              L_rate='yes'
-       #         else:
-        #            L_rate='no'
-        #    m,R=bestfit(MList,Binns[0:len(MList)])
-        #    print('M liner test :',m,' R linear test :',R)
-            
-   #     else:
-   #         L_rate= 'maybe'
-   # else:
-   #         L_rate= 'maybe'
+   
     return Binsize, L_rate
 
 
 
 
 
+# Crtiticality analysis Script 
+# This script uses the aformentions functions 
 
 import csv
 import matplotlib.pyplot as plt
