@@ -1,0 +1,128 @@
+# converts .txt adjecancy matrices to type graph, and uses networkX functions to compute omega, Average pathlenght, Clustering, and mean degree  
+
+import openpyxl
+import os
+import pandas as pd
+import networkx as nx
+import numpy as np
+import scipy.io
+import pathlib
+from collections import Counter
+
+import csv
+from scipy.optimize import curve_fit
+import xlsxwriter
+
+# for sorting by inhibitory ratio
+H = ['75-4708_A1','75-4708_B2','75-4713_A3','75-4713_B1','75-4719_A2','75-4719_B3']
+M = ['75-4708_A2','75-4708_B3','75-4713_A1','75-4713_B2','75-4719_A3','75-4719_B1']
+L = ['75-4708_A3','75-4708_B1','75-4713_A2','75-4713_B3','75-4719_A1','75-4719_B2']
+
+
+curent_path=pathlib.Path(os.getcwd()).resolve()
+print(curent_path)
+
+Counter=0
+Presistant=[]
+for current_file in pathlib.Path(curent_path).rglob('*.txt'): # loads txt matrix
+    curent=os.path.basename(current_file)
+    input_data=pd.read_csv(current_file, header=None)
+    input_data_A=np.array(input_data)
+    Counter=Counter+1
+    Presistant.append(np.unique(input_data_A))
+
+Presistant=np.hstack(Presistant)
+    
+
+for current_file in pathlib.Path(curent_path).rglob('*.txt'): # loads txt matrix
+    Presistant=[]
+    curent=os.path.basename(current_file)
+    DIV=curent[0:2]    
+    Culture=curent[6:16]
+    print(DIV,Culture)
+    print( Culture[5:8])
+    if 1==1:
+        if int(DIV) <60 and int(DIV) >52 and Culture=='75-4708_B3'  :
+            input_data=pd.read_csv(current_file, header=None)
+            input_data_A=np.array(input_data)
+
+            if Culture in H:          # sorts inhibitory ratio by cultures 
+                InhibitoryRatio= 0.24
+
+            elif Culture in M:
+                InhibitoryRatio= 0.15
+
+            elif Culture in L:
+                InhibitoryRatio= 0.08
+                
+                
+                
+            # filters matrises and a makes matrix convertable to type graph 
+            
+            Treashold= 0.25
+            
+            for i in range (0,len(input_data_A)):
+                for j in range (0,len(input_data_A)):
+                    if input_data_A[i][j] <Treashold:
+                        input_data_A[i][j]=0
+
+            
+            indx=-1
+            for i in range (0,len(input_data_A)):   #remove empty rows and colums so graph is not fully connected
+                indx=indx+1
+                if sum(input_data_A[indx][:]) == 0: 
+                    input_data_A=np.delete(input_data_A,indx,0)
+                    indx=indx-1
+
+            indx=-1
+            for j in range (0,len(input_data_A)): 
+                indx=indx+1
+                if sum(input_data_A[indx][:]) == 0: 
+                    input_data_A=np.delete(input_data_A,indx,1)
+                    indx=indx-1
+            if len(input_data_A) != len(input_data_A[0]):
+                if len(input_data_A) > len(input_data_A[0]): # more cloums than rows
+                    print('Add rows')
+                    A=len(input_data_A) - len(input_data_A[0])
+                    B=len(input_data_A)
+                    rows, cols = (B,A)
+                    arr = [[1]*cols]*rows
+
+
+
+
+                    input_data_A=np.concatenate((input_data_A,arr))
+
+                elif len(input_data_A) < len(input_data_A[0]): # more rows than columns  
+                    print('add cloumns')
+                    A=len(input_data_A[0]) - len(input_data_A)
+                    B=len(input_data_A[0])
+                    rows, cols = (A,B)
+                    arr = [[1]*cols]*rows
+
+                    input_data_A=np.concatenate((input_data_A,arr))
+                        
+                        
+            # Converts to type graph and computes: Clustering, average pathlenght, meand degree, and omega(SmallWorldness) 
+            if len(input_data_A) and len(input_data_A[0]) >0:
+                G=nx.Graph(input_data_A)
+
+
+                MD=sum(nx.average_degree_connectivity(G))/len(nx.average_degree_connectivity(G))
+                C=nx.average_clustering(G)
+                if nx.is_connected(G) == True:
+                    AP=nx.average_shortest_path_length(G)
+                    O=nx.omega(G,int(17),10)
+                    
+                    print('Average path',AP)
+                else:
+                    for C_a in (G.subgraph(c).copy() for c in nx.connected_components(G)):
+                        print('Average path',nx.average_shortest_path_length(C_a))
+                    O='NaN'
+
+                print('Cluster',C)
+                print('Mean degree',MD)
+                print('Omega: ',O)
+                print('')
+    
+                
